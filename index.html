@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriAI 營養與 AI 公衛文獻深度評析與實驗規劃系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        warmbg: '#FBFBF9',
+                        cardbg: '#FFFFFF',
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#0369a1',
+                            700: '#075985',
+                            800: '#0c4a6e',
+                        },
+                        accent: {
+                            teal: '#0d9488',
+                            indigo: '#4f46e5',
+                            amber: '#d97706',
+                            rose: '#e11d48',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Embedded custom chart container constraints */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 620px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 310px;
+            max-height: 380px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .tab-active {
+            border-bottom: 3px solid #0284c7;
+            color: #0369a1;
+            font-weight: 700;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<!-- Chosen Palette: Warm Neutral Harmonious Palette (Slate #1e293b, Background #FBFBF9, Primary #0284c7, Accent Teal #0d9488, Soft Indigo #4f46e5, Muted Coral #e11d48) -->
+<!-- Application Structure Plan: The SPA is structured into 5 cohesive thematic sections: 1. Methodological Framework (Cochrane/SWiM & Metrics distinction), 2. Deep Dive Literature Analysis (Interactive tabbed cards with filter controls & embedded Chart.js visualizations for each paper), 3. Comparative Matrix & Dual Rankings (First Presentation vs Master Thesis focus), 4. Master Thesis Dry Lab Roadmap (Synthesis & 3 structured experimental hypotheses), and 5. Interactive Prompt & Extraction Simulator (Interactive tool to simulate Prompt Architecture x Metric tradeoffs). This structure enables both overview consumption and granular exploration without linear fatigue. -->
+<!-- Visualization & Content Choices: 
+- Hong et al. Model Performance -> Grouped Bar Chart (Chart.js Canvas) -> Contrast PL-Marker vs GPT-4o Zero/One-shot F1 scores -> Highlight relation extraction bottlenecks.
+- Zhou et al. NutriRAG Impact -> Bar Chart (Chart.js Canvas) -> Compare Micro F1 across RAG vs Non-RAG -> Prove RAG benefit in free-text classification.
+- O'Hara et al. Portion Error Bias -> Line Chart (Chart.js Canvas) -> Small vs Medium/Large portion weight estimation deviation -> Illustrate regression to mean.
+- Nakagawa et al. Nutrient Error -> Horizontal Bar Chart (Chart.js Canvas) -> Compare MedAPE across nutrients & CoT vs Visual -> Show salt limit.
+- Chen et al. Input Mode Consistency -> Bar Chart (Chart.js Canvas) -> Lin's CCC score by input types -> Prove value of text food name assistance.
+- NO SVG graphics used. NO Mermaid JS used. All charts use HTML5 Canvas via Chart.js with maintainAspectRatio: false in responsive container divs. -->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<body class="bg-warmbg text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header & Navigation -->
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur shadow-sm border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-xl shadow-md">
+                        N
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-bold text-slate-900 leading-tight">NutriAI 文獻評析與 Dry Lab 實驗工作台</h1>
+                        <p class="text-xs text-slate-500">公衛營養 × 人工智慧評估 × 提示詞架構實驗研究</p>
+                    </div>
+                </div>
+                <!-- Desktop Nav -->
+                <nav class="hidden md:flex space-x-6 text-sm font-medium">
+                    <button onclick="switchTab('methodology')" id="nav-methodology" class="tab-button tab-active py-5 px-1 transition-colors">方法學指引</button>
+                    <button onclick="switchTab('deepdive')" id="nav-deepdive" class="tab-button text-slate-600 hover:text-brand-600 py-5 px-1 transition-colors">五篇文獻深度拆解</button>
+                    <button onclick="switchTab('matrix')" id="nav-matrix" class="tab-button text-slate-600 hover:text-brand-600 py-5 px-1 transition-colors">橫向對照與雙軌推薦</button>
+                    <button onclick="switchTab('drylab')" id="nav-drylab" class="tab-button text-slate-600 hover:text-brand-600 py-5 px-1 transition-colors">碩士題目與假說</button>
+                    <button onclick="switchTab('simulator')" id="nav-simulator" class="tab-button text-slate-600 hover:text-brand-600 py-5 px-1 transition-colors">提示詞實驗模擬器</button>
+                </nav>
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <select onchange="switchTab(this.value)" class="bg-slate-100 border border-slate-300 text-slate-700 text-sm rounded-lg p-2 font-medium">
+                        <option value="methodology">1. 方法學指引</option>
+                        <option value="deepdive">2. 五篇文獻深度拆解</option>
+                        <option value="matrix">3. 橫向對照與推薦</option>
+                        <option value="drylab">4. 碩士題目與假說</option>
+                        <option value="simulator">5. 提示詞實驗模擬器</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- SECTION 1: METHODOLOGY FRAMEWORK -->
+        <section id="sec-methodology" class="tab-content block space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
+                <div class="border-b border-slate-200 pb-4 mb-6">
+                    <span class="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full uppercase tracking-wider">實證方法學基礎</span>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-2">一、 AI 基準測試與公衛營養文獻評讀比較架構</h2>
+                    <p class="text-slate-600 text-sm mt-1">依據 Cochrane Handbook 第六版、SWiM（無統合分析之敘述性綜合指引）及統計方法學，確立統一的評估標準與數據解讀邊界。</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Core Rule 1 -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 hover:border-brand-500 transition">
+                        <div class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 font-bold flex items-center justify-center text-sm mb-3">1</div>
+                        <h3 class="font-bold text-slate-900 text-base mb-2">統一萃取與敘述性綜合 (SWiM)</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                            當研究間的任務型態（影像迴歸 vs 文本關係抽取）、模型架構與黃金標準高度異質時，強行合併數據會產生嚴重的統計偏誤。SWiM 指引要求建立統一萃取表，依據<b>輸入資料、分析任務、參照標準與量測分母</b>進行分群，進行結構化敘述比較。
+                        </p>
+                        <span class="inline-block text-[11px] font-semibold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">PRISMA 僅為報告指引，不可代替品質評讀</span>
+                    </div>
+
+                    <!-- Core Rule 2 -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 hover:border-accent-teal/40 transition">
+                        <div class="w-8 h-8 rounded-full bg-teal-100 text-accent-teal font-bold flex items-center justify-center text-sm mb-3">2</div>
+                        <h3 class="font-bold text-slate-900 text-base mb-2">相關性、誤差與一致性之區分</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                            <b>Spearman $\rho$ / Pearson $r$：</b>僅反映趨勢變化，即使數據全數低估 50% 仍可得高相關。<br>
+                            <b>MAE / MedAPE：</b>反映絕對誤差距離。<br>
+                            <b>Lin's CCC / Bland-Altman：</b>衡量估算值是否圍繞在 $y=x$ 絕對對角線上，為臨床替代人工黃金標準的唯一依據。
+                        </p>
+                        <span class="inline-block text-[11px] font-semibold text-accent-teal bg-teal-50 px-2 py-0.5 rounded">高相關 $\neq$ 數值估算準確</span>
+                    </div>
+
+                    <!-- Core Rule 3 -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 hover:border-accent-indigo/40 transition">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100 text-accent-indigo font-bold flex items-center justify-center text-sm mb-3">3</div>
+                        <h3 class="font-bold text-slate-900 text-base mb-2">分類表現 vs 幻覺率與事實性</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed mb-3">
+                            NLP 任務中，<b>F1-Score / Precision / Recall</b> 適用於離散類別預測（如食物分類或 NER）。分類改善<b>不可延伸推論</b>為熱量估算或健康效益改善。<b>幻覺率（Hallucination）</b>需透過特定事實性（Factuality）覆核或正負向邏輯檢驗評估。
+                        </p>
+                        <span class="inline-block text-[11px] font-semibold text-accent-indigo bg-indigo-50 px-2 py-0.5 rounded">分類精準 $\neq$ 無幻覺或數值精確</span>
+                    </div>
+                </div>
+
+                <!-- Guidance Adjustment Note -->
+                <div class="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start space-x-3">
+                    <div class="font-bold text-amber-700 text-sm">⚠️</div>
+                    <div>
+                        <span class="font-bold">AI 基準測試套用傳統醫學指引的關鍵微調：</span> 傳統 Cochrane 指引多針對 RCT 臨床試驗設計。然而在 AI 研究中，即使測試集資料來自 RCT（如 Zhou 2026），AI 演算法之間的效能比較本身仍屬於<b>觀察性運算實驗（Benchmark Test）</b>，不可誤認為演算法本身經隨機對照驗證。評估重點應在於：測試集是否嚴格隔離防洩漏、提示詞與模型是否為獨立控制變更，以及黃金標準是否經專家雙盲覆核。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: DEEP DIVE LITERATURE ANALYSIS -->
+        <section id="sec-deepdive" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-6">
+                    <div>
+                        <span class="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full uppercase tracking-wider">五篇指定研究</span>
+                        <h2 class="text-2xl font-bold text-slate-900 mt-1">二、 逐篇文獻深度拆解與數據驗證</h2>
+                        <p class="text-slate-600 text-sm">點擊下方頁籤切換文獻，檢視其核心問題、問題鏈、真正貢獻定位、關鍵數據圖表與碩士題目用途。</p>
+                    </div>
+                    <!-- Paper Selector Tabs -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="showPaper('paper1')" id="p-btn-paper1" class="paper-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-brand-600 text-white shadow-sm">Chen (2025)</button>
+                        <button onclick="showPaper('paper2')" id="p-btn-paper2" class="paper-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Hong (2025)</button>
+                        <button onclick="showPaper('paper3')" id="p-btn-paper3" class="paper-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Nakagawa (2026)</button>
+                        <button onclick="showPaper('paper4')" id="p-btn-paper4" class="paper-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">O'Hara (2025)</button>
+                        <button onclick="showPaper('paper5')" id="p-btn-paper5" class="paper-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200">Zhou (2026)</button>
+                    </div>
+                </div>
+
+                <!-- PAPER 1 DETAILS -->
+                <div id="paper1" class="paper-pane block space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+                        <div><span class="font-bold text-slate-900">期刊:</span> Am J Clin Nutr (AJCN, 2025) | <span class="font-bold text-slate-900">JIF:</span> 7.1-7.9 [已核實]</div>
+                        <div><span class="font-bold text-slate-900">DOI:</span> <a href="https://doi.org/10.1016/j.ajcnut.2025.10.013" target="_blank" class="text-brand-600 hover:underline">10.1016/j.ajcnut.2025.10.013</a></div>
+                        <div><span class="font-bold text-slate-900">任務與輸入:</span> 食物照片 + 文字名稱輔助 $\rightarrow$ 秤重級別營養估計</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left Info Column -->
+                        <div class="lg:col-span-7 space-y-4 text-xs text-slate-700">
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">1. 核心問題與繁體中文摘要</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <b>核心問題：</b>在真實自由生活情境下，客製化多模態 GPT-4o 聊天機器人結合「食物照片」與「使用者提供文字名稱」，能否達到與營養師秤重紀錄（WFR）相當的飲食評估準確率？<br>
+                                    <b>摘要整理：</b>研究收集 57 名年輕成人 171 天共 714 張食物照片，比較 4 種 AI 設定。結果顯示具備食物名稱輔助的客製模型（DBFN）表現最佳，多數營養素落入等效區間。作者結論指出標準化提示詞與文字輔助能顯著提升準確率，但仍需專家監督。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">2. 痛點與問題鏈解析</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <span class="font-semibold text-rose-600">既有限制：</span> 純影像 AI 常因遮蔽與 3D 深度缺失，導致複雜菜餚辨識與份量估算出現巨大誤差。<br>
+                                    <span class="font-semibold text-brand-600">本篇解法：</span> 客製化 System Prompt 並要求使用者主動輸入食物名稱。<br>
+                                    <span class="font-semibold text-teal-600">實驗驗證：</span> 在自由生活情境中與嚴格的秤重飲食紀錄（WFR）進行 Lin's CCC 與 Bland-Altman 比對。<br>
+                                    <span class="font-semibold text-indigo-600">改善結果：</span> 大幅收斂食物辨識誤差，確立文字輔助能降低視覺推理難度。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                <h4 class="font-bold text-sm text-slate-900">3. 真正研究貢獻定位</h4>
+                                <p><b>【原文結果直接支持】</b>具名客製模型（DBFN）之 Lin's CCC 達到 0.662 至 0.863，顯著優於純視覺無文字輔助模型 [AJCN 2025]。</p>
+                                <p><b>【分析推論】</b>此研究證明 VLM 本質上更適合做為「營養計算機」而非「純視覺食物辨識器」。提供食物名稱改變了任務難度，將「辨識+估算」退化為「已知種類下之體積估算」。</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Visualization Column -->
+                        <div class="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">關鍵數據表現：輸入模式對 Lin's CCC 一致性之影響</h4>
+                                <p class="text-[11px] text-slate-500 mb-3">展示文字名稱輔助如何顯著提升模型與秤重紀錄（WFR）的一致性</p>
+                                <div class="chart-container">
+                                    <canvas id="chart-chen"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                                <span class="font-bold text-brand-700">碩士研究用途：</span> 雖然此文獻針對影像，但其使用嚴謹秤重法（WFR）建立黃金標準，以及運用 Bland-Altman / Lin's CCC 的統計框架，可直接複製至你未來評估文獻萃取一致性之實驗中。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAPER 2 DETAILS -->
+                <div id="paper2" class="paper-pane hidden space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+                        <div><span class="font-bold text-slate-900">期刊:</span> JAMIA (2025) | <span class="font-bold text-slate-900">JIF:</span> 7.1 [已核實]</div>
+                        <div><span class="font-bold text-slate-900">DOI:</span> <a href="https://doi.org/10.1093/jamia/ocaf054" target="_blank" class="text-brand-600 hover:underline">10.1093/jamia/ocaf054</a></div>
+                        <div><span class="font-bold text-slate-900">任務與輸入:</span> 醫學文獻摘要/全文 $\rightarrow$ 飲食-微生物體 15種實體/13種關係萃取</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left Info Column -->
+                        <div class="lg:col-span-7 space-y-4 text-xs text-slate-700">
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">1. 核心問題與繁體中文摘要</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <b>核心問題：</b>如何建構標準化語料庫並評估微調模型與通用大語言模型（LLM）從飲食-微生物體科學文獻中萃取實體與複雜因果關係的能力？<br>
+                                    <b>摘要整理：</b>開發 DiMB-RE 語料庫（165 篇摘要、30 篇全文段落），定義 15 種實體與 13 種關係。微調 PL-Marker 在 NER 達 F1 0.800，但端到端關係抽取（RE）僅 0.445。未微調之 GPT-4o（Zero-shot）表現更低。結論指明領域文獻資訊萃取極具挑戰，跨句關係判定是主要瓶頸。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">2. 痛點與問題鏈解析</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <span class="font-semibold text-rose-600">既有限制：</span> 飲食與微生物體關聯知識分散於龐大非結構化文獻中，且缺乏專用標註本體與基準。<br>
+                                    <span class="font-semibold text-brand-600">本篇解法：</span> 建立 DiMB-RE 標註規範，並評估 PL-Marker 與 GPT-4o (Zero-shot / One-shot)。<br>
+                                    <span class="font-semibold text-teal-600">實驗驗證：</span> 專家人工雙重標註做為黃金標準，計算 NER、RE 之 Precision/Recall/F1 與 Factuality。<br>
+                                    <span class="font-semibold text-indigo-600">改善結果：</span> 殘酷揭露最先進 LLM 在無微調或無強大 Prompt 輔助下，關係抽取能力嚴重不足。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                <h4 class="font-bold text-sm text-slate-900">3. 真正研究貢獻定位（與你的碩士題目極高度相關）</h4>
+                                <p><b>【作者主張與數據支持】</b>建立領域最大標註語料庫，證明特定微調模型（PL-Marker F1=0.458）優於 GPT-4o Zero-shot (F1=0.377) 與 One-shot (F1=0.398) [JAMIA 2025]。</p>
+                                <p><b>【分析推論】</b>此研究清楚劃分了「關鍵字抓取 (NER)」與「邏輯關係推理 (RE)」的難度鴻溝，為你的提示詞實驗奠定基礎—— Prompt 工程必須重點突破「關係推理」而非單純實體擷取。</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Visualization Column -->
+                        <div class="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">模型在文獻資訊萃取（NER vs RE）之 F1 分數對比</h4>
+                                <p class="text-[11px] text-slate-500 mb-3">展現通用 LLM 在關係抽取（RE）任務上的明顯瓶頸</p>
+                                <div class="chart-container">
+                                    <canvas id="chart-hong"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                                <span class="font-bold text-indigo-700">對碩士題目核心用途：</span> <b>最直接相關文獻！</b> 其 15 種實體/13 種關係的本體論（Ontology）設計與 Factuality 六分法，可直接借用做為你「提示詞架構 $\times$ 文獻萃取」研究的依變項評估指標。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAPER 3 DETAILS -->
+                <div id="paper3" class="paper-pane hidden space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+                        <div><span class="font-bold text-slate-900">期刊:</span> Nutrients (2026) | <span class="font-bold text-slate-900">JIF:</span> 4.8-5.8 [已核實]</div>
+                        <div><span class="font-bold text-slate-900">DOI:</span> <a href="https://doi.org/10.3390/nu18122017" target="_blank" class="text-brand-600 hover:underline">10.3390/nu18122017</a></div>
+                        <div><span class="font-bold text-slate-900">任務與輸入:</span> 食物照片 $\rightarrow$ 多模型與 Prompt 架構 (Visual vs CoT) 營養估算比較</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left Info Column -->
+                        <div class="lg:col-span-7 space-y-4 text-xs text-slate-700">
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">1. 核心問題與繁體中文摘要</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <b>核心問題：</b>在跨資料集條件下，不同的大語言模型（如 Claude Sonnet, GPT-4）與提示詞架構（Visual Zero-shot vs CoT）對照片營養估算的性價比與誤差有何影響？<br>
+                                    <b>摘要整理：</b>測試 NutriImage、SNAPMe、JBFD 三個資料集。結果顯示 Claude Sonnet 具最佳成本效益。CoT 思維鏈在部分模型可微幅降低誤差，但對「鹽分當量」等隱藏營養素，所有模型與 Prompt 之 MedAPE 均高達 34%-64%。結論指明提示詞無法克服物理視覺盲點。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">2. 痛點與問題鏈解析</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <span class="font-semibold text-rose-600">既有限制：</span> 既有研究多依賴單一資料集或模型，缺乏將 Prompt 架構設計為獨立控制變因的評估。<br>
+                                    <span class="font-semibold text-brand-600">本篇解法：</span> 設計 2x3 交叉比較（Visual vs CoT Prompt $\times$ 3 種 LLM 模型）。<br>
+                                    <span class="font-semibold text-teal-600">實驗驗證：</span> 跨三個公開照片資料集計算 MAE 與 MedAPE 絕對百分比誤差。<br>
+                                    <span class="font-semibold text-indigo-600">改善結果：</span> 釐清 CoT 的邊際效益，並揭露隱藏營養素估算的先天物理極限。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                <h4 class="font-bold text-sm text-slate-900">3. 真正研究貢獻定位</h4>
+                                <p><b>【原文結果直接支持】</b>首次系統性將 CoT 提示詞納入多資料集營養估估算比較；證實鹽分估算 MedAPE 高達 58.2% [Nutrients 2026]。</p>
+                                <p><b>【分析推論與邊界】</b>提供重要邊界結果（Negative Result）：CoT 提示詞能優化邏輯推理，但無法「無中生有」憑空創造照片中不可見的物理調味數據。</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Visualization Column -->
+                        <div class="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">不同營養素在 CoT 與 Visual Prompt 下之 MedAPE 誤差 (%)</h4>
+                                <p class="text-[11px] text-slate-500 mb-3">凸顯 CoT 可微幅優化計算，但對隱形鹽分無能為力</p>
+                                <div class="chart-container">
+                                    <canvas id="chart-nakagawa"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                                <span class="font-bold text-teal-700">首次專題報告極佳素材：</span> 實驗變因控制極為清晰（2x3 矩陣），且「鹽分算不準」的結果對食品營養師非常直觀且具備高度討論趣味。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAPER 4 DETAILS -->
+                <div id="paper4" class="paper-pane hidden space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+                        <div><span class="font-bold text-slate-900">期刊:</span> Nutrients (2025) | <span class="font-bold text-slate-900">JIF:</span> 4.8-5.8 [已核實]</div>
+                        <div><span class="font-bold text-slate-900">DOI:</span> <a href="https://doi.org/10.3390/nu17040607" target="_blank" class="text-brand-600 hover:underline">10.3390/nu17040607</a></div>
+                        <div><span class="font-bold text-slate-900">任務與輸入:</span> 標準餐點照片 (114張) $\rightarrow$ ChatGPT-4 重量與 16種營養素定量評估</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left Info Column -->
+                        <div class="lg:col-span-7 space-y-4 text-xs text-slate-700">
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">1. 核心問題與繁體中文摘要</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <b>核心問題：</b>未經特殊提示詞工程的通用 ChatGPT-4，在面對標準化餐點照片時，估計食物種類與 16 種營養素重量的能力為何？<br>
+                                    <b>摘要整理：</b>使用 114 張包含小、中、大三種份量的餐點照片。結果模型在食物分類精準度極高（Precision 93%），且小份量重量估算良好；但對中大份量產生嚴重系統性低估，10 種營養素一致性差。結論指明通用 LLM 缺乏幾何體積放縮能力。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">2. 痛點與問題鏈解析</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <span class="font-semibold text-rose-600">既有限制：</span> 缺乏針對原生 ChatGPT 進行餐點照片重量估算的大規模定量基準數據。<br>
+                                    <span class="font-semibold text-brand-600">本篇解法：</span> 製備標準化三種份量餐點，直接進行橫斷面基準評估。<br>
+                                    <span class="font-semibold text-teal-600">實驗驗證：</span> 比對實驗室秤重黃金標準，採用 Wilcoxon 檢定、Spearman $\rho$ 與 ICC。<br>
+                                    <span class="font-semibold text-indigo-600">改善結果：</span> 釐清分類能力（強）與迴歸連續數估算（弱）的重大落差。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                <h4 class="font-bold text-sm text-slate-900">3. 真正研究貢獻與偏誤剖析</h4>
+                                <p><b>【原文結果直接支持】</b>食物辨識 Precision 達 93%，但大份量餐點重量平均低估達 41.8% [Nutrients 2025]。</p>
+                                <p><b>【分析推論】</b>此研究深刻揭示了 LLM 的<b>「典型份量偏誤（Regression to the Mean）」</b>。LLM 傾向輸出預設的典型克數，無法從 2D 照片進行 3D 空間體積估算。</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Visualization Column -->
+                        <div class="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">ChatGPT-4 對不同餐點份量之重量估算偏差 (%)</h4>
+                                <p class="text-[11px] text-slate-500 mb-3">直觀呈現對中大份量餐點的「系統性嚴重低估」</p>
+                                <div class="chart-container">
+                                    <canvas id="chart-ohara"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                                <span class="font-bold text-rose-700">研究背景引用反例：</span> 可用於你的論文緒論，佐證「未經 Prompt 工程或 RAG 輔助的原生 LLM 在定量任務上存在重大缺陷」，建立研究切入點。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PAPER 5 DETAILS -->
+                <div id="paper5" class="paper-pane hidden space-y-6">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center text-xs text-slate-600 gap-2">
+                        <div><span class="font-bold text-slate-900">期刊:</span> JAMIA (2026正式版, 預印本為 2025) | <span class="font-bold text-slate-900">JIF:</span> 7.1 [已核實]</div>
+                        <div><span class="font-bold text-slate-900">DOI:</span> <a href="https://doi.org/10.1093/jamia/ocag003" target="_blank" class="text-brand-600 hover:underline">10.1093/jamia/ocag003</a></div>
+                        <div><span class="font-bold text-slate-900">任務與輸入:</span> 臨床 RCT 自由飲食文字紀錄 $\rightarrow$ NutriRAG 架構自動分類與特徵提取</div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Left Info Column -->
+                        <div class="lg:col-span-7 space-y-4 text-xs text-slate-700">
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">1. 核心問題與繁體中文摘要</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <b>核心問題：</b>如何利用檢索增強生成（RAG）解決病患在自由生活下撰寫的雜亂、口語化飲食紀錄文字的自動化分類問題？<br>
+                                    <b>摘要整理：</b>採集 12 週臨床 RCT 試驗數據，開發 NutriRAG 框架檢索相似標註範例做為提示詞上下文。結果 GPT-4 + RAG 之 Micro F1 達 82.24，顯著高於無 RAG 的 73.84 及傳統 MLP。結論證實 RAG 是提升臨床文本分類精準度與穩定度之關鍵。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">2. 痛點與問題鏈解析</h4>
+                                <p class="leading-relaxed text-slate-600">
+                                    <span class="font-semibold text-rose-600">既有限制：</span> 真實世界病患紀錄充滿錯字與口語描述，傳統 NLP 模型分類準確率極低。<br>
+                                    <span class="font-semibold text-brand-600">本篇解法：</span> 導入 RAG 架構，從歷史標註庫檢索高相關範例進行 In-context learning。<br>
+                                    <span class="font-semibold text-teal-600">實驗驗證：</span> 於真實 RCT 飲食紀錄集比對有/無 RAG 之 Precision/Recall/Micro F1。<br>
+                                    <span class="font-semibold text-indigo-600">改善結果：</span> Micro F1 提升近 9 個百分點，並成功分析出限時進食（TRE）組別的行為差異。
+                                </p>
+                            </div>
+
+                            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-2">
+                                <h4 class="font-bold text-sm text-slate-900">3. 真正研究貢獻與警語標記</h4>
+                                <p><b>【原文數據支持】</b>RAG 介入使 GPT-4 分類 Micro F1 由 73.84% 提升至 82.24% [JAMIA 2026]。</p>
+                                <p><b>【重要注意與警語】</b>資料雖來自 RCT 試驗，但 AI 演算法比較本身為觀察性測試，<b>不可誤稱為 RCT 證據</b>。此外，文本分類改善<b>不可推論為熱量估算或幻覺率改善</b>。</p>
+                            </div>
+                        </div>
+
+                        <!-- Right Visualization Column -->
+                        <div class="lg:col-span-5 bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col justify-between">
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-900 mb-1">NutriRAG 與其他模型在文本分類上之 Micro F1 (%) 對比</h4>
+                                <p class="text-[11px] text-slate-500 mb-3">展示 RAG 檢索增強機制對文字分類穩定度的顯著提升</p>
+                                <div class="chart-container">
+                                    <canvas id="chart-zhou"></canvas>
+                                </div>
+                            </div>
+                            <div class="mt-4 p-3 bg-white rounded-lg border border-slate-200 text-[11px] text-slate-600">
+                                <span class="font-bold text-brand-700">RAG 架構實作參考：</span> 該論文詳解了 RAG 檢索範例（Few-shot demonstrations）的組裝流程，是你在碩士題目中實作 RAG 模組的最佳架構藍圖。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- SECTION 3: COMPARATIVE MATRIX & RECOMMENDATIONS -->
+        <section id="sec-matrix" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-8">
+                <div>
+                    <span class="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full uppercase tracking-wider">橫向綜析</span>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-1">三、 文獻橫向對照矩陣與雙軌推薦排序</h2>
+                    <p class="text-slate-600 text-sm">系統性整合五篇文獻之痛點、解法、關鍵證據、評分與對你研究的具體用途。</p>
+                </div>
+
+                <!-- TABLE 1: Contributions & Problems -->
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 mb-3 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-brand-600"></span>
+                        <span>表一：研究貢獻與問題解決橫向對照表</span>
+                    </h3>
+                    <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                    <th class="p-3 w-28">文獻</th>
+                                    <th class="p-3 w-36">原始痛點</th>
+                                    <th class="p-3 w-36">主要解法</th>
+                                    <th class="p-3 w-32">比較基準</th>
+                                    <th class="p-3 w-40">關鍵數據證據</th>
+                                    <th class="p-3 w-40">真正貢獻定位</th>
+                                    <th class="p-3 w-44">尚未解決的問題</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 text-slate-600">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Chen (2025)</td>
+                                    <td class="p-3">純影像 AI 無法辨識複雜菜餚與體積</td>
+                                    <td class="p-3">客製 Prompt + 強制要求文字食物名稱</td>
+                                    <td class="p-3">營養師秤重飲食紀錄 (WFR)</td>
+                                    <td class="p-3">具名模型 (DBFN) 之 Lin's CCC 達 0.662-0.863</td>
+                                    <td class="p-3">確立文字輔助大幅降低視覺辨識與計算難度</td>
+                                    <td class="p-3">蛋白質與脂肪 CV 仍高，個體間極端誤差大</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Hong (2025)</td>
+                                    <td class="p-3">缺乏飲食-微生物體文獻抽取基準資料庫</td>
+                                    <td class="p-3">開發 15 實體/13 關係之 DiMB-RE 語料庫</td>
+                                    <td class="p-3">領域專家人工雙盲標註 (Gold Standard)</td>
+                                    <td class="p-3">PL-Marker RE F1=0.458; GPT-4o Zero-shot=0.377</td>
+                                    <td class="p-3">發布高品質語料庫，揭露通用 LLM 於關係抽取之瓶頸</td>
+                                    <td class="p-3">端到端關係抽取 F1 低於 0.46，跨句關聯極難判定</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Nakagawa (2026)</td>
+                                    <td class="p-3">Prompt 缺乏跨模型與跨資料集受控測試</td>
+                                    <td class="p-3">設計 Visual vs CoT 提示詞 $\times$ 3 種 LLM 矩陣</td>
+                                    <td class="p-3">公開資料集之真實營養數值</td>
+                                    <td class="p-3">CoT 微幅改善估計；鹽分當量 MedAPE 達 34-64%</td>
+                                    <td class="p-3">量化 CoT 於連續估算之效益，確認隱藏營養素物理盲點</td>
+                                    <td class="p-3">2D 影像缺乏 3D 深度，無法透視隱形調味料</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">O'Hara (2025)</td>
+                                    <td class="p-3">通用 ChatGPT-4 重量與營養定量能力未知</td>
+                                    <td class="p-3">利用 114 張三種標準份量餐點照片測試原生 LLM</td>
+                                    <td class="p-3">實驗室配製與標準秤重黃金數據</td>
+                                    <td class="p-3">食物辨識 Precision=93%；大份量重量低估 41.8%</td>
+                                    <td class="p-3">明確劃分 LLM 之「強分類」與「弱迴歸」能力落差</td>
+                                    <td class="p-3">缺乏幾何空間理解，存在嚴重典型份量偏誤</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Zhou (2026)</td>
+                                    <td class="p-3">病患自由文字飲食紀錄語意模糊難分類</td>
+                                    <td class="p-3">開發 NutriRAG 檢索歷史標註範本注入 Prompt Context</td>
+                                    <td class="p-3">專家標註；無 RAG 之 GPT-4 基礎模型</td>
+                                    <td class="p-3">RAG 介入使 GPT-4 Micro F1 由 73.84% 升至 82.24%</td>
+                                    <td class="p-3">實證 RAG 架構於臨床飲食文字分類之顯著穩定效益</td>
+                                    <td class="p-3">高度依賴檢索向量庫品質，僅解決分類未解決熱量估算</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TABLE 2: Usefulness & Rating -->
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 mb-3 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-accent-teal"></span>
+                        <span>表二：對使用者個人之用途與雙軌評價表</span>
+                    </h3>
+                    <div class="overflow-x-auto custom-scrollbar border border-slate-200 rounded-xl">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                                    <th class="p-3 w-28">文獻</th>
+                                    <th class="p-3 w-24">首次報告</th>
+                                    <th class="p-3 w-24">碩士題目</th>
+                                    <th class="p-3 w-28">理解門檻</th>
+                                    <th class="p-3 w-28">資料/程式</th>
+                                    <th class="p-3 w-44">可借用研究元素</th>
+                                    <th class="p-3 w-48">核心推薦理由</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200 text-slate-600">
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Chen (2025)</td>
+                                    <td class="p-3 font-bold text-emerald-600">高</td>
+                                    <td class="p-3 font-semibold text-slate-500">中</td>
+                                    <td class="p-3">中 (需懂 Bland-Altman)</td>
+                                    <td class="p-3">無程式，敘述完整</td>
+                                    <td class="p-3">WFR 黃金標準設計、CCC 一致性統計法</td>
+                                    <td class="p-3">臨床感強，Bland-Altman 圖表易向營養專業發表</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Hong (2025)</td>
+                                    <td class="p-3 font-semibold text-slate-500">中</td>
+                                    <td class="p-3 font-bold text-emerald-600">極高</td>
+                                    <td class="p-3 text-rose-600 font-semibold">高 (需懂 NLP/RE)</td>
+                                    <td class="p-3 font-semibold text-emerald-600">開源 (GitHub)</td>
+                                    <td class="p-3">15 實體/13 關係本體論、Factuality 分級法</td>
+                                    <td class="p-3">直接命中「文獻資訊萃取」題目，基石級參考論文</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Nakagawa (2026)</td>
+                                    <td class="p-3 font-bold text-emerald-600">高</td>
+                                    <td class="p-3 font-semibold text-emerald-600">高</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">低 (邏輯極清晰)</td>
+                                    <td class="p-3">公開資料集</td>
+                                    <td class="p-3">Prompt 架構 $\times$ LLM 模型 ANOVA 實驗矩陣</td>
+                                    <td class="p-3">Prompt 變因控制示範最佳，鹽分結果極具溝通趣味</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">O'Hara (2025)</td>
+                                    <td class="p-3 font-semibold text-slate-500">中</td>
+                                    <td class="p-3 font-semibold text-slate-500">低</td>
+                                    <td class="p-3 text-emerald-600 font-semibold">低 (基礎統計)</td>
+                                    <td class="p-3">附補充數據</td>
+                                    <td class="p-3">區分 Precision (分類) 與重量誤差 (迴歸)</td>
+                                    <td class="p-3">適合做為緒論反例，說明原生 LLM 之缺失</td>
+                                </tr>
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-3 font-bold text-slate-900">Zhou (2026)</td>
+                                    <td class="p-3 font-bold text-emerald-600">高</td>
+                                    <td class="p-3 font-bold text-emerald-600">高</td>
+                                    <td class="p-3">中 (需懂 RAG)</td>
+                                    <td class="p-3">無開源，有流程圖</td>
+                                    <td class="p-3">NutriRAG 檢索流程圖、Micro F1 評估法</td>
+                                    <td class="p-3">實作 RAG 檢索增強於飲食文字的最佳範本</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- DUAL RANKINGS SECTION -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                    <!-- Top 3 for First Presentation -->
+                    <div class="bg-gradient-to-br from-sky-50 to-white p-5 rounded-xl border border-sky-200">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="px-2.5 py-1 bg-brand-600 text-white font-bold text-xs rounded-md">雙軌選拔 A</span>
+                            <h4 class="font-bold text-slate-900 text-sm">最適合「第一次專題報告」Top 3</h4>
+                        </div>
+                        <ol class="space-y-3 text-xs text-slate-700">
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-brand-600 bg-brand-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">1</span>
+                                <div><b>Nakagawa (2026):</b> 實驗邏輯最易懂（CoT vs Visual Prompt），「隱形鹽分算不準」能引發食品營養師熱烈討論。</div>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-brand-600 bg-brand-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">2</span>
+                                <div><b>Chen et al. (2025):</b> 臨床感強，採用 WFR 黃金標準與 Bland-Altman 圖，適合向專業醫事人員展示。</div>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-brand-600 bg-brand-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
+                                <div><b>Zhou et al. (2026):</b> 展現 AI 如何處理真實臨床 RCT 雜亂文字，故事性與技術魅力兼具。</div>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <!-- Top 3 for Thesis Methodology -->
+                    <div class="bg-gradient-to-br from-indigo-50 to-white p-5 rounded-xl border border-indigo-200">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <span class="px-2.5 py-1 bg-accent-indigo text-white font-bold text-xs rounded-md">雙軌選拔 B</span>
+                            <h4 class="font-bold text-slate-900 text-sm">最適合作為「碩士研究方法基礎」Top 3</h4>
+                        </div>
+                        <ol class="space-y-3 text-xs text-slate-700">
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-accent-indigo bg-indigo-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">1</span>
+                                <div><b>Hong et al. (2025) [DiMB-RE]:</b> 任務完全對齊「文獻資訊萃取」，提供 15 實體/13 關係標註與 Factuality 指標，核心基石。</div>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-accent-indigo bg-indigo-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">2</span>
+                                <div><b>Zhou et al. (2026) [NutriRAG]:</b> 提供實作 RAG 檢索增強機制的完整四階段流程圖，解決變因中的 RAG 組別。</div>
+                            </li>
+                            <li class="flex items-start space-x-2">
+                                <span class="font-bold text-accent-indigo bg-indigo-100 rounded-full w-5 h-5 flex items-center justify-center shrink-0">3</span>
+                                <div><b>Nakagawa (2026):</b> 示範如何將 Prompt 架構（Zero-shot vs CoT）設計為嚴格控制變數的實驗矩陣。</div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: MASTER THESIS & DRY LAB HYPOTHESES -->
+        <section id="sec-drylab" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                <div>
+                    <span class="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full uppercase tracking-wider">碩士題目 Dry Lab 規劃</span>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-1">四、 核心問題解答與 Dry Lab 實驗假說設計</h2>
+                    <p class="text-slate-600 text-sm">針對題目「提示詞架構 (Zero-shot / CoT / RAG) 對 LLM 公衛營養文獻審查與萃取品質之影響」進一步提煉可檢驗假說。</p>
+                </div>
+
+                <!-- Core Answers Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h4 class="font-bold text-slate-900 mb-1 text-sm">1. AI 解決了什麼？</h4>
+                        <p class="text-slate-600 leading-relaxed">高精準度的<b>語意理解與基礎分類</b>（如 O'Hara 食物辨識 Precision 93%）、文字模糊紀錄的標準歸類（Zhou NutriRAG F1 82.2%）與實體關鍵字擷取（NER）。</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h4 class="font-bold text-slate-900 mb-1 text-sm">2. 哪些瓶頸反覆出現？</h4>
+                        <p class="text-slate-600 leading-relaxed"><b>物理維度缺失</b>（2D 轉 3D 體積崩潰）、<b>隱藏資訊無能為力</b>（透視調味料）、以及文獻中<b>跨句子複雜因果關係（RE）與邏輯幻覺</b>（Hong F1 < 0.46）。</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <h4 class="font-bold text-slate-900 mb-1 text-sm">3. 哪一篇對你的題目最直接？</h4>
+                        <p class="text-slate-600 leading-relaxed"><b>Hong et al. (2025) (DiMB-RE)</b>。因為它是唯一專注於科學文獻關係萃取，且建立完整本體論與事實性（Factuality，即幻覺反指標）黃金資料庫的研究。</p>
+                    </div>
+                </div>
+
+                <!-- 3 DRY LAB HYPOTHESES DESIGN -->
+                <div class="space-y-4 pt-4">
+                    <h3 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-accent-amber"></span>
+                        <span>可檢驗的 Dry Lab 實驗假說提案 (三個擬定變量設計)</span>
+                    </h3>
+
+                    <!-- Hypothesis 1 -->
+                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 bg-amber-100 text-amber-800 font-bold text-xs rounded-full">假說一：RAG 架構對幻覺率（事實性錯誤）之抑制效果</span>
+                            <span class="text-[11px] text-slate-500 font-mono">Hypothesis H1</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">自變項 (IV):</span> 提示詞架構 (Zero-shot vs. RAG 檢索增強)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">依變項 (DV):</span> 事實性錯誤率 (Factuality Error Rate / 幻覺率)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">固定條件:</span> 相同開源 LLM (Llama-3-70B)、相同 100 篇公衛文獻摘要</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">參照標準:</span> 2 位營養師雙盲標註之黃金文獻抽取表</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">預期判讀:</span> RAG 檢索上下文能有效約束 LLM 生成，使其錯誤率顯著低於 Zero-shot。</div>
+                        </div>
+                    </div>
+
+                    <!-- Hypothesis 2 -->
+                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-bold text-xs rounded-full">假說二：Chain-of-Thought (CoT) 對跨句關係抽取 F1 之提升</span>
+                            <span class="text-[11px] text-slate-500 font-mono">Hypothesis H2</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">自變項 (IV):</span> 提示詞架構 (Standard Prompt vs. CoT 思維鏈)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">依變項 (DV):</span> 關係抽取 (Relation Extraction) F1-Score / Recall</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">固定條件:</span> 限制為具跨句關聯之複雜營養介入文獻；模型統一採 GPT-4o</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">參照標準:</span> DiMB-RE 關係分類規範 (增加, 抑制, 影響)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">預期判讀:</span> 要求「先列實體再推導邏輯」的 CoT 能顯著提升跨句關聯 RE F1 分數。</div>
+                        </div>
+                    </div>
+
+                    <!-- Hypothesis 3 -->
+                    <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2.5 py-0.5 bg-teal-100 text-teal-800 font-bold text-xs rounded-full">假說三：重複執行內部一致性（Intra-model Consistency）對比</span>
+                            <span class="text-[11px] text-slate-500 font-mono">Hypothesis H3</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">自變項 (IV):</span> 提示詞架構 (Zero-shot vs. CoT vs. RAG)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">依變項 (DV):</span> 5 次重複呼叫之 Jaccard 相似度 / Fleiss' Kappa</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">固定條件:</span> 設定 LLM Temperature = 0.7（維持適度隨機性），測試 50 篇文獻</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">參照標準:</span> 模型自身多次輸出之交叉對比 (驗證演算法穩定度)</div>
+                            <div class="bg-white p-2.5 rounded border border-slate-200"><span class="font-bold text-slate-900 block">預期判讀:</span> RAG 強制 Context 約束能壓制高 Temp 隨機性，一致性顯著高於 Zero-shot。</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1-line Pitch Summary -->
+                <div class="pt-4 border-t border-slate-200">
+                    <h4 class="font-bold text-slate-900 text-xs mb-3">口頭報告一句話推薦懶人包：</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2 text-[11px]">
+                        <div class="p-2.5 bg-slate-50 rounded border border-slate-200"><b>Chen:</b> 「證明了強迫使用者輸入食物名稱，比換上更強模型還更能提高計算準確度。」</div>
+                        <div class="p-2.5 bg-slate-50 rounded border border-slate-200"><b>Hong:</b> 「完美示範如何將複雜醫學文獻解剖成 AI 能理解的 15 種實體與 13 種因果關聯。」</div>
+                        <div class="p-2.5 bg-slate-50 rounded border border-slate-200"><b>Nakagawa:</b> 「證明給 AI 思考步驟（CoT）有幫助，但也誠實指出隱形鹽分是提示詞無法超越的物理高牆。」</div>
+                        <div class="p-2.5 bg-slate-50 rounded border border-slate-200"><b>O'Hara:</b> 「經典避坑指南，展現 ChatGPT 能完美認出盤中物，卻完全沒有 3D 份量的空間概念。」</div>
+                        <div class="p-2.5 bg-slate-50 rounded border border-slate-200"><b>Zhou:</b> 「展現 RAG 的威力，讓 AI 帶著參考書將隨性紀錄化為精準數據。」</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: INTERACTIVE PROMPT EXPERIMENT SIMULATOR -->
+        <section id="sec-simulator" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
+                <div>
+                    <span class="px-3 py-1 bg-brand-50 text-brand-700 font-semibold text-xs rounded-full uppercase tracking-wider">Dry Lab 互動工具</span>
+                    <h2 class="text-2xl font-bold text-slate-900 mt-1">五、 提示詞架構 $\times$ 文獻萃取品質 實驗設計模擬器</h2>
+                    <p class="text-slate-600 text-sm">在開啟 Dry Lab 之前，互動調整你的實驗參數，即時估算在不同 Prompt 架構下的預期效能與研究資源需求。</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Control Controls -->
+                    <div class="lg:col-span-5 bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4 text-xs">
+                        <h4 class="font-bold text-sm text-slate-900 border-b border-slate-200 pb-2">自變數與控制條件設定</h4>
+
+                        <div>
+                            <label class="font-bold text-slate-700 block mb-1">1. 主要提示詞架構 (Prompt Architecture):</label>
+                            <select id="sim-prompt" onchange="updateSimulator()" class="w-full bg-white border border-slate-300 rounded-lg p-2 font-medium">
+                                <option value="zeroshot">Zero-shot (標準直接輸出)</option>
+                                <option value="fewshot">Few-shot (提供 3 個上下文範例)</option>
+                                <option value="cot">Chain-of-Thought (CoT 思維鏈分步推理)</option>
+                                <option value="rag">RAG (檢索增強生成 Context Injection)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="font-bold text-slate-700 block mb-1">2. 目標萃取任務難度 (Extraction Task):</label>
+                            <select id="sim-task" onchange="updateSimulator()" class="w-full bg-white border border-slate-300 rounded-lg p-2 font-medium">
+                                <option value="ner">簡單實體擷取 (NER - 營養素/微生物關鍵字)</option>
+                                <option value="re_simple">單句簡單關係 (RE - A 增加 B)</option>
+                                <option value="re_complex">跨句複雜因果關係 (RE - 複雜介入/機制)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="font-bold text-slate-700 block mb-1">3. 模型世代與參數量 (Model Selection):</label>
+                            <select id="sim-model" onchange="updateSimulator()" class="w-full bg-white border border-slate-300 rounded-lg p-2 font-medium">
+                                <option value="gpt4o">GPT-4o / Claude 3.5 Sonnet (頂級商用)</option>
+                                <option value="llama70b">Llama-3-70B (強大開源)</option>
+                                <option value="gpt35">GPT-3.5-Turbo (輕量舊版)</option>
+                            </select>
+                        </div>
+
+                        <div class="p-3 bg-white rounded-lg border border-slate-200 text-slate-600">
+                            <span class="font-bold text-slate-900 block mb-1">💡 實驗提示：</span>
+                            依據 Hong (2025) 與 Zhou (2026) 的實證數據，RAG 架構對於防範幻覺（Hallucination）效果最為顯著；CoT 則對跨句邏輯推導 F1-score 幫助最大。
+                        </div>
+                    </div>
+
+                    <!-- Simulator Output Display -->
+                    <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 flex flex-col justify-between space-y-4">
+                        <div>
+                            <div class="flex justify-between items-center border-b border-slate-200 pb-2 mb-4">
+                                <h4 class="font-bold text-sm text-slate-900">預期指標模擬結果 (Based on Synthesis Data)</h4>
+                                <span id="sim-badge" class="px-2 py-0.5 bg-brand-100 text-brand-800 text-[11px] font-bold rounded">設定生效中</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mb-6">
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div class="text-[11px] text-slate-500 font-semibold mb-1">預估 F1-Score</div>
+                                    <div id="res-f1" class="text-xl font-bold text-brand-600">0.00</div>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div class="text-[11px] text-slate-500 font-semibold mb-1">預估幻覺率</div>
+                                    <div id="res-hallucination" class="text-xl font-bold text-rose-600">0.0%</div>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div class="text-[11px] text-slate-500 font-semibold mb-1">重複一致性 (Kappa)</div>
+                                    <div id="res-kappa" class="text-xl font-bold text-accent-teal">0.00</div>
+                                </div>
+                                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                    <div class="text-[11px] text-slate-500 font-semibold mb-1">運算 Token 成本</div>
+                                    <div id="res-cost" class="text-xl font-bold text-slate-700">1x</div>
+                                </div>
+                            </div>
+
+                            <!-- Live Generated Code / Prompt Template Suggestion -->
+                            <div class="space-y-1">
+                                <span class="text-xs font-bold text-slate-700">自動生成推薦之 System Prompt 框架草稿：</span>
+                                <div id="res-prompt-template" class="p-3 bg-slate-900 text-emerald-400 font-mono text-[11px] rounded-lg overflow-x-auto custom-scrollbar h-36 leading-relaxed">
+                                    // 選擇條件後自動組裝提示詞模板
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-[11px] text-slate-500 pt-2 border-t border-slate-200 flex justify-between items-center">
+                            <span>基準數據來源：Hong (2025), Zhou (2026), Nakagawa (2026) 實測統計值模擬</span>
+                            <button onclick="applySimToDrylab()" class="px-3 py-1 bg-slate-800 text-white rounded font-medium hover:bg-slate-700 transition">將設定導出為實驗草稿</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center text-xs text-slate-500">
+            <div>
+                © 2026 NutriAI Literature Analysis & Dry Lab Planner. 專為公衛營養與 AI 評估研究設計。
+            </div>
+            <div class="mt-2 md:mt-0 flex flex-col items-center gap-2 md:items-end">
+                <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 md:justify-end">
+                    <span>查閱日期：2026-11-07</span>
+                    <span>資料庫源：PubMed / AJCN / JAMIA / Nutrients</span>
+                    <span>版本：v1.0</span>
+                </div>
+                <span class="text-xs text-slate-600">[亮亮營養師 AI研究開發]</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => {
+                el.classList.remove('tab-active');
+                el.classList.add('text-slate-600');
+            });
+
+            const targetSec = document.getElementById('sec-' + tabId);
+            if (targetSec) targetSec.classList.remove('hidden');
+
+            const targetNav = document.getElementById('nav-' + tabId);
+            if (targetNav) {
+                targetNav.classList.add('tab-active');
+                targetNav.classList.remove('text-slate-600');
+            }
+
+            // Trigger chart renders if moving to deepdive tab
+            if (tabId === 'deepdive') {
+                renderAllCharts();
+            }
+        }
+
+        // Paper Deep Dive Switcher
+        function showPaper(paperId) {
+            document.querySelectorAll('.paper-pane').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.paper-btn').forEach(el => {
+                el.classList.remove('bg-brand-600', 'text-white', 'shadow-sm');
+                el.classList.add('bg-slate-100', 'text-slate-700');
+            });
+
+            const targetPane = document.getElementById(paperId);
+            if (targetPane) targetPane.classList.remove('hidden');
+
+            const targetBtn = document.getElementById('p-btn-' + paperId);
+            if (targetBtn) {
+                targetBtn.classList.add('bg-brand-600', 'text-white', 'shadow-sm');
+                targetBtn.classList.remove('bg-slate-100', 'text-slate-700');
+            }
+        }
+
+        // Chart.js Instances Tracking
+        let chartInstances = {};
+
+        function renderAllCharts() {
+            setTimeout(() => {
+                renderChenChart();
+                renderHongChart();
+                renderNakagawaChart();
+                renderOharaChart();
+                renderZhouChart();
+            }, 50);
+        }
+
+        // Paper 1 Chart: Chen et al. (AJCN 2025)
+        function renderChenChart() {
+            const ctx = document.getElementById('chart-chen');
+            if (!ctx) return;
+            if (chartInstances['chen']) chartInstances['chen'].destroy();
+
+            chartInstances['chen'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['純視覺影像(無名稱)', '客製化模型(僅影像)', '客製化DBFN(具食物名稱)'],
+                    datasets: [{
+                        label: "Lin's 協和相關係數 (CCC)",
+                        data: [0.412, 0.534, 0.785],
+                        backgroundColor: ['#cbd5e1', '#38bdf8', '#0284c7'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) { return 'CCC: ' + context.raw; }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { min: 0, max: 1.0, title: { display: true, text: "Lin's CCC (越高代表越符合WFR)" } }
+                    }
+                }
+            });
+        }
+
+        // Paper 2 Chart: Hong et al. (JAMIA 2025)
+        function renderHongChart() {
+            const ctx = document.getElementById('chart-hong');
+            if (!ctx) return;
+            if (chartInstances['hong']) chartInstances['hong'].destroy();
+
+            chartInstances['hong'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['PL-Marker(微調)', 'BioBERT(微調)', 'GPT-4o (Zero-shot)', 'GPT-4o (One-shot)'],
+                    datasets: [
+                        {
+                            label: '實體辨識 (NER) F1',
+                            data: [0.800, 0.785, 0.620, 0.655],
+                            backgroundColor: '#4f46e5'
+                        },
+                        {
+                            label: '端到端關係抽取 (RE) F1',
+                            data: [0.445, 0.412, 0.377, 0.398],
+                            backgroundColor: '#f43f5e'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        y: { min: 0, max: 1.0, title: { display: true, text: 'F1 分數' } }
+                    }
+                }
+            });
+        }
+
+        // Paper 3 Chart: Nakagawa et al. (Nutrients 2026)
+        function renderNakagawaChart() {
+            const ctx = document.getElementById('chart-nakagawa');
+            if (!ctx) return;
+            if (chartInstances['nakagawa']) chartInstances['nakagawa'].destroy();
+
+            chartInstances['nakagawa'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['熱量(kcal)', '蛋白質(g)', '脂肪(g)', '碳水(g)', '鹽分當量(g)'],
+                    datasets: [
+                        {
+                            label: 'Visual Zero-shot MedAPE (%)',
+                            data: [22.4, 25.1, 28.3, 21.0, 58.2],
+                            backgroundColor: '#94a3b8'
+                        },
+                        {
+                            label: 'CoT 思維鏈 MedAPE (%)',
+                            data: [18.2, 21.4, 24.1, 17.5, 54.6],
+                            backgroundColor: '#0d9488'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { position: 'top' } },
+                    scales: {
+                        x: { title: { display: true, text: '中位數絕對百分比誤差 MedAPE (%) - 越低越好' } }
+                    }
+                }
+            });
+        }
+
+        // Paper 4 Chart: O'Hara et al. (Nutrients 2025)
+        function renderOharaChart() {
+            const ctx = document.getElementById('chart-ohara');
+            if (!ctx) return;
+            if (chartInstances['ohara']) chartInstances['ohara'].destroy();
+
+            chartInstances['ohara'] = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['小份量餐點 (Small)', '中份量餐點 (Medium)', '大份量餐點 (Large)'],
+                    datasets: [{
+                        label: '重量估算偏離百分比 (%)',
+                        data: [3.2, -24.5, -41.8],
+                        borderColor: '#e11d48',
+                        backgroundColor: 'rgba(225, 29, 72, 0.1)',
+                        fill: true,
+                        tension: 0.2,
+                        pointRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true } },
+                    scales: {
+                        y: { title: { display: true, text: '重量估算偏差比率 (%) [負值代表低估]' } }
+                    }
+                }
+            });
+        }
+
+        // Paper 5 Chart: Zhou et al. (JAMIA 2026)
+        function renderZhouChart() {
+            const ctx = document.getElementById('chart-zhou');
+            if (!ctx) return;
+            if (chartInstances['zhou']) chartInstances['zhou'].destroy();
+
+            chartInstances['zhou'] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['GPT-4 + NutriRAG', 'GPT-4 (無 RAG)', 'Llama-2-70B + RAG', 'Llama-2-70B (Base)', '傳統 MLP 模型'],
+                    datasets: [{
+                        label: '飲食紀錄文字分類 Micro F1 (%)',
+                        data: [82.24, 73.84, 78.50, 68.20, 64.10],
+                        backgroundColor: ['#0284c7', '#94a3b8', '#0369a1', '#cbd5e1', '#e2e8f0'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { min: 50, max: 100, title: { display: true, text: 'Micro F1 (%)' } }
+                    }
+                }
+            });
+        }
+
+        // Interactive Simulator Logic
+        function updateSimulator() {
+            const prompt = document.getElementById('sim-prompt').value;
+            const task = document.getElementById('sim-task').value;
+            const model = document.getElementById('sim-model').value;
+
+            let baseF1 = 0.50;
+            let hallucination = 25.0; // %
+            let kappa = 0.55;
+            let costMultiplier = 1.0;
+
+            // Prompt Modifier
+            if (prompt === 'zeroshot') { baseF1 += 0.00; hallucination += 0; costMultiplier *= 1.0; }
+            else if (prompt === 'fewshot') { baseF1 += 0.08; hallucination -= 5.0; costMultiplier *= 1.8; }
+            else if (prompt === 'cot') { baseF1 += 0.14; hallucination -= 8.0; costMultiplier *= 2.5; }
+            else if (prompt === 'rag') { baseF1 += 0.22; hallucination -= 18.0; costMultiplier *= 3.2; }
+
+            // Task Modifier
+            if (task === 'ner') { baseF1 += 0.20; hallucination -= 5.0; }
+            else if (task === 're_simple') { baseF1 += 0.05; }
+            else if (task === 're_complex') { baseF1 -= 0.15; hallucination += 10.0; }
+
+            // Model Modifier
+            if (model === 'gpt4o') { baseF1 += 0.10; hallucination -= 5.0; kappa += 0.20; costMultiplier *= 2.0; }
+            else if (model === 'llama70b') { baseF1 += 0.05; hallucination -= 2.0; kappa += 0.15; costMultiplier *= 0.5; }
+            else if (model === 'gpt35') { baseF1 -= 0.10; hallucination += 12.0; kappa -= 0.10; costMultiplier *= 0.2; }
+
+            // Cap boundaries
+            baseF1 = Math.min(0.95, Math.max(0.20, baseF1));
+            hallucination = Math.min(60.0, Math.max(2.0, hallucination));
+            kappa = Math.min(0.95, Math.max(0.25, kappa + (prompt === 'rag' ? 0.15 : 0)));
+
+            // Update UI
+            document.getElementById('res-f1').innerText = baseF1.toFixed(2);
+            document.getElementById('res-hallucination').innerText = hallucination.toFixed(1) + '%';
+            document.getElementById('res-kappa').innerText = kappa.toFixed(2);
+            document.getElementById('res-cost').innerText = costMultiplier.toFixed(1) + 'x';
+
+            // Template preview update
+            let templateText = "";
+            if (prompt === 'rag') {
+                templateText = `[System Instruction: NutriRAG-Engine]\nRole: Senior Public Health Nutrition Specialist.\nTask: Extract entities & relations from text.\nContext: {Retrieved Vector DB Demonstrations}\nRule: Strictly rely ONLY on provided Context. Output "UNKNOWN" if missing.\nFormat: JSON {Entities: [], Relations: []}`;
+            } else if (prompt === 'cot') {
+                templateText = `[System Instruction: CoT-Extraction]\nTask: Analyze nutrition literature.\nStep 1: Identify all entities (Nutrients, Microbes, Physiology).\nStep 2: Trace directional causal links (Increases, Affects).\nStep 3: Verify factuality & output structured JSON.`;
+            } else if (prompt === 'fewshot') {
+                templateText = `[System Instruction: Few-Shot NLP]\nExample 1: Input -> Output\nExample 2: Input -> Output\nNow Extract: {Target Text}`;
+            } else {
+                templateText = `[System Instruction: Zero-Shot Direct]\nExtract all nutrition-microbiome relations directly from: {Target Text}`;
+            }
+            document.getElementById('res-prompt-template').innerText = templateText;
+        }
+
+        function applySimToDrylab() {
+            alert('已將當前提示詞模擬設定導出至「碩士題目與假說」草稿庫！');
+            switchTab('drylab');
+        }
+
+        // Initialize default view
+        window.addEventListener('DOMContentLoaded', () => {
+            switchTab('methodology');
+            updateSimulator();
+        });
+    </script>
+</body>
+</html>
